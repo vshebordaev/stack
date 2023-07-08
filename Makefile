@@ -31,7 +31,7 @@ $(LIBNAME): $(LIBOBJ)
 impl: $(patsubst %.c,%.so,$(wildcard impl/*.c))
 
 impl/%.so: impl/%.o $(LIBNAME)
-	$(LD) -o $@ -shared $^ -L. -lstack
+	$(LD) -o $@ -shared $< -L. -lstack
 
 impl/%.o: impl/%.c
 	$(CC) $(CFLAGS) -I. -I.. -o $@ -c $<

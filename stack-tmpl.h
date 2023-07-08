@@ -3,8 +3,6 @@
 
 #include "types.h"
 
-extern int register_tmpl(const struct stack_tmpl *tmpl);
-
 struct stack_tmpl {
 	const char *name;
 	const char *alias;

@@ -1,6 +1,10 @@
 #ifndef __COMPAT_H__
 #define __COMPAT_H__
 
+/*
+ * Most of this file is taken from the Linux kernel source
+ */
+
 #include <stddef.h>
 
 #define __stringify(x...)     #x

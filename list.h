@@ -1,6 +1,10 @@
 #ifndef __LIST_H__
 #define __LIST_H__
 
+/*
+ * Most of this file is taken from the Linux kernel source
+ */
+
 #include "compat.h"
 
 struct list_head {

@@ -133,7 +133,7 @@ static int test_proc(struct stack *stack, int nelts)
 		if (cnt <= 0)
 			goto out;
 
-		if (min != stack->min(stack))
+		if (min != stack_min(stack))
 			dbg(LOG_ERR, "min value from stack is incorrect");
 	}
 
