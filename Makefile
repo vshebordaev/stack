@@ -3,7 +3,7 @@ SRC := $(filter-out $(LIBSRC),$(wildcard *.c))
 OBJ := $(SRC:.c=.o)
 
 LIBNAME := libstack.so
-LIBSRC := debug.c
+LIBSRC := debug.c stack.c
 LIBOBJ := $(LIBSRC:.c=.o)
 
 ifneq ($(NDEBUG),)

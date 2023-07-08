@@ -302,6 +302,7 @@ static void __destructor(PRIO_HIGH) registry_cleanup(void)
 		list_del(&impl->list);
 		put_impl(impl);
 	}
+	free(registry);
 }
 
 
