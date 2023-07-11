@@ -12,16 +12,21 @@
 
 struct entry {
 	struct list_head list;
-	struct entry *min;
 
 	value_t data;
+};
+
+struct min_entry {
+	struct list_head list;
+
+	struct entry *entry;
 };
 
 struct list_impl {
 	mtx_t lock;
 
 	struct list_head all;
-	struct entry *min;
+	struct list_head min;
 };
 
 static inline void impl_lock(struct list_impl *impl)
@@ -37,16 +42,16 @@ static inline void impl_unlock(struct list_impl *impl)
 static inline value_t __min_value(struct list_impl *impl)
 {
 	value_t ret;
-	struct entry *entry;
+	struct min_entry *min;
 
 	ret = VALUE_MAX;
 
-	entry = impl->min;
-	if (!entry) {
+	min = list_first_entry(&impl->min, struct min_entry, list);
+	if (list_entry_is_head(min, &impl->min, list)) {
 		errno = ESRCH;
 		goto out;
 	}
-	ret = entry->data;
+	ret = min->entry->data;
 out:
 	return ret;
 }
@@ -83,10 +88,19 @@ static int stack_list_push(struct stack *stack, value_t top)
 	entry->data = top;
 
 	impl_lock(impl);
-	entry->min = impl->min;
-	if (top < __min_value(impl))
-		impl->min = entry;
 	list_add(&entry->list, &impl->all);
+	if (top < __min_value(impl)) {
+		struct min_entry *min;
+
+		min = calloc(1, sizeof(struct min_entry));
+		if (!min) {
+			errno = ENOMEM;
+			impl_unlock(impl);
+			goto out;
+		}
+		min->entry = entry;
+		list_add(&min->list, &impl->min);
+	}
 	impl_unlock(impl);
 	ret = 0;
 out:
@@ -98,6 +112,7 @@ static value_t stack_list_pop(struct stack *stack)
 	int ret;
 	struct list_impl *impl;
 	struct entry *entry;
+	struct min_entry *min;
 
 	impl = priv(stack);
 
@@ -109,9 +124,12 @@ static value_t stack_list_pop(struct stack *stack)
 		errno = ESRCH;
 		goto out;
 	}
-	if (impl->min == entry)
-		impl->min = entry->min;
 
+	min = list_first_entry(&impl->min, struct min_entry, list);
+	if (min->entry == entry) {
+		list_del(&min->list);
+		free(min);
+	}
 	list_del(&entry->list);
 	ret = entry->data;
 	free(entry);
@@ -128,7 +146,7 @@ static int stack_list_init(struct stack *stack, int depth UNUSED)
 
 	mtx_init(&impl->lock, mtx_plain);
 	list_init(&impl->all);
-	impl->min = NULL;
+	list_init(&impl->min);
 
 	return 0;
 }
@@ -137,9 +155,14 @@ static void __stack_list_cleanup(struct stack *stack)
 {
 	struct list_impl *impl;
 	struct entry *entry, *tmp;
+	struct min_entry *min, *temp;
 
 	impl = priv(stack);
 
+	list_for_each_entry_safe(min, temp, &impl->min, list) {
+		list_del(&min->list);
+		free(min);
+	}
 	list_for_each_entry_safe(entry, tmp, &impl->all, list) {
 		list_del(&entry->list);
 		free(entry);
