@@ -37,7 +37,7 @@
 
 extern char *program_invocation_short_name;
 
-#ifndef NDEBUG
+#ifdef DEBUG
 extern int log_level;
 #define dbg( lvl, fmt, ... ) do { if (lvl <= log_level) fprintf( stderr, "%s:%d: " fmt "\n", __func__, __LINE__, ##__VA_ARGS__); } while (0)
 #else

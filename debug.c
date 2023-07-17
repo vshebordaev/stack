@@ -7,7 +7,9 @@
 #define MSG_SIZE_MAX 128
 #endif
 
+#ifdef DEBUG
 int log_level = DEFAULT_LOG_LEVEL;
+#endif
 
 static __thread char msgbuf[MSG_SIZE_MAX];
 

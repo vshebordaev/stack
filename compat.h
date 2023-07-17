@@ -96,6 +96,7 @@ do {									\
 #ifdef __GNUC__
 #define __constructor( prio ) __attribute__((constructor(prio)))
 #define __destructor( prio ) __attribute__((destructor(prio)))
+#define __section( name ) __attribute__((section(name)))
 #else
 #error "Unknown compiler"
 #endif

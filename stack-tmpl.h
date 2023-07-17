@@ -3,6 +3,14 @@
 
 #include "types.h"
 
+#ifndef IMPL_SECTION_NAME
+#define IMPL_SECTION_NAME ".stack_tmpl"
+#endif
+
+#ifndef IMPL_NAME_LENGTH_MAX
+#define IMPL_NAME_LENGTH_MAX 255
+#endif
+
 struct stack_tmpl {
 	const char *name;
 	const char *alias;

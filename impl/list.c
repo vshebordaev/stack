@@ -146,9 +146,12 @@ static void __stack_list_cleanup(struct stack *stack)
 	}
 }
 
+static const char __section(IMPL_SECTION_NAME) name[] = "list";
+static const char __section(IMPL_SECTION_NAME) alias[] = "generic";
+
 static const struct stack_tmpl list_tmpl = {
-	.name = "list",
-	.alias = "generic",
+	.name = name,
+	.alias = alias,
 	.extra = sizeof(struct list_impl),
 
 	.push = stack_list_push,

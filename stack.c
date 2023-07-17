@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <sys/param.h>
 
 #include <stdatomic.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <link.h>
 #include <dlfcn.h>
 
 #include "compat.h"
@@ -159,97 +161,65 @@ struct stack *stack_create(const char *name, size_t nelts)
 
 	impl = find_impl(name);
 	if (!impl) {
+		struct stack_impl *new;
 		void *handle;
 
+		const struct stack_tmpl *tmpl;
+		const struct stack_tmpl *(*get_tmpl)();
+
+		struct link_map *link_map;
 		char path[PATH_MAX], *cp;
-		size_t length;
 
-		DIR *dir;
-		struct dirent *de;
-
-		if (!getcwd(path, PATH_MAX)) {
-			dbg(LOG_ERR, "couldn't get current directory: %s", errstr(errno));
-			goto err;
-		}
-
-		cp = path + strlen(path);
+		cp = stpncpy(path, PLUGINS, PATH_MAX);
 		*cp++ = '/';
-		cp = stpcpy(cp, DEFAULT_SO_PATH);
-		*cp++ = '/';
-		*cp = '\0';
-
-		dir = opendir(path);
-		if (!dir) {
-			dbg(LOG_ERR, "opendir(\"%s\") failed: %s", path, errstr(errno));
-			goto err;
-		}
-
-		registry_lock(registry);
+		cp = stpcpy(cp, name);
+		cp = stpcpy(cp, SO_EXT);
 
 		errno = 0;
-		while ((de = readdir(dir))) {
-			const struct stack_tmpl *tmpl;
-			const struct stack_tmpl *(*get_tmpl)();
-
-			struct stack_impl *new;
-			size_t len;
-
-			len = strlen(de->d_name);
-			if (len < sizeof(SO_EXT) - 1 || strcmp(de->d_name + len - sizeof(SO_EXT) + 1, SO_EXT))
-				goto leave;
-			memcpy(cp, de->d_name, len + 1);
-
-			handle = dlopen(path, RTLD_NOLOAD);
-			if (handle)
-				goto leave;
-
-			handle = dlopen(path, RTLD_LAZY);
-			if (!handle) {
-				dbg(LOG_ERR, "%s", dlerror());
-				goto leave;
-			}
-
-			get_tmpl = dlsym(handle, REQUEST_TMPL);
-			if (!get_tmpl)
-				goto close;
-
-			tmpl = get_tmpl();
-			if (!tmpl) {
-				dbg(LOG_ERR, "couldn't get template from \"%s\"", path);
-				goto close;
-			}
-
-			if (strcmp(tmpl->name, name) && strcmp(tmpl->alias, name))
-				goto close;
-
-			new = impl_create(tmpl);
-			if (!new) {
-				closedir(dir);
-				dlclose(handle);
-				registry_unlock(registry);
-				goto err;
-			}
-
-			new->handle = handle;
-			new->path = strdup(path);
-			list_add(&new->list, &registry->impls);
-
-			impl = new;
-			break;
-		close:
-			dlclose(handle);
-		leave:
-			errno = 0;
-		}
-		registry_unlock(registry);
-
-		closedir(dir);
-
-		if (!impl) {
-			if (!errno)
-				dbg(LOG_ERR, "implementation \"%s\" does not exist", name);
+		handle = dlopen(path, RTLD_LAZY);
+		if (!handle) {
+			dbg(LOG_ERR, "%s", dlerror());
 			goto err;
 		}
+
+		errno = 0;
+		get_tmpl = dlsym(handle, REQUEST_TMPL);
+		if (!get_tmpl || !(tmpl = get_tmpl())) {
+			dbg(LOG_ERR, "couldn't get template from \"%s\"", path);
+			goto close;
+		}
+
+		if (strcmp(tmpl->name, name) && strcmp(tmpl->alias, name))
+			goto close;
+
+		new = impl_create(tmpl);
+		if (!new)
+			goto close;
+
+		new->handle = handle;
+
+		if (dlinfo(handle, RTLD_DI_LINKMAP, &link_map)) {
+			dbg(LOG_ERR, "dlinfo(\"%s\") failed: %s", path, dlerror());
+			new->path = strdup(path);
+		} else
+			new->path = strdup(link_map->l_name);
+
+		registry_lock(registry);
+		impl = __find_impl(name);
+		if (!impl) {
+			list_add(&new->list, &registry->impls);
+			impl = new;
+		}
+		registry_unlock(registry);
+	close:
+		if (!impl)
+			put_impl(new);
+	}
+
+	if (!impl) {
+		if (!errno)
+			dbg(LOG_ERR, "implementation \"%s\" does not exist", name);
+		goto err;
 	}
 
 	ret = calloc(1, impl->size);

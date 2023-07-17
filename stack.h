@@ -5,10 +5,6 @@
 
 #include "types.h"
 
-#ifndef DEFAULT_SO_PATH
-#define DEFAULT_SO_PATH "impl"
-#endif /* DEFAULT_SO */
-
 #ifndef DEFAULT_IMPL
 #define DEFAULT_IMPL "generic"
 #endif

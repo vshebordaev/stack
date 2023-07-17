@@ -2,9 +2,18 @@
 
 export DH_VERBOSE=1
 
+-include /usr/share/dpkg/architecture.mk
+-include /usr/share/dpkg/pkg-info.mk
+
+export root=/
+export DEB_SOURCE
+
 %:
 	dh $@
-
-override_dh_install:
-	[ -e impl/.links ] && sed -e 's|/+|/|g' > debian/stack.links 
+ 
+override_dh_install: impl/.links .install
+	for f in $^; do \
+		[ -e "$$f" ] && sed -e 's|/+|/|g' $$f > debian/$(DEB_SOURCE)$$(basename $$f); \
+	done
 	dh_install
+
