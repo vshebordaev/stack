@@ -170,6 +170,8 @@ struct stack *stack_create(const char *name, size_t nelts)
 		struct link_map *link_map;
 		char path[PATH_MAX], *cp;
 
+		new = NULL;
+
 		cp = stpncpy(path, PLUGINS, PATH_MAX);
 		*cp++ = '/';
 		cp = stpcpy(cp, name);
